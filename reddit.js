@@ -5,90 +5,57 @@
 var reddit  = (function ($){
 //private stuff
 
-
+/*
+ *  sendProxyRequest - executes a request via a proxy necessary for auth operations such as messages, login, etc.
+ */
+function sendProxyRequest ( thing, opts ) {
+	var defaultOpts = { //default Opts map for Proxy requests
+			type:		"POST",
+			dataType:	"json",
+			url:		"http://localhost:8888/reddit/proxy/" + thing + ".json", //The proxy server
+		};
+	opts = $.extend( true, defaultOpts, opts );
+	sendRequest( thing, opts );
+}
 /***********************************************************************************************
  *function: sendRequest(url,callback,postData)
- *@url: REQUIRED string - full URL you wish to send request to
+ *@thing: REQUIRED string - thing being requested(the path after reddit.com/ less extension). queryString paramters go in opts.data
  *@opts: REQUIRED map - options map specifying request type(POST/GET, SSL/Not, success/error handlers, etc.)
- *@postData: OPTIONAL - string - data as it would be appended to the end of the URL for GET data
  *RETURNS: No return. Fires callback when AJAX request completes.
  *         Parameter passed to callback will either be AJAX data (successful connection)
  *         or HTTP error Code.
  ***********************************************************************************************/
-function sendRequest( thing, opts, postData ) {
-	var defaultOpts = { //default Opts map
+function sendRequest( thing, opts ) {
+	var defaultOpts = { //default Opts map, for anon GET requests primarily
 			type: 		"GET",
-			ssl:		false,
 			dataType:	"jsonp",
 			jsonp: 		"jsonp",
 			url:		"http://www.reddit.com/" + thing + ".json",
-			data:		postData,
+			data:		{
+				api_type: 	"json" //ask for a json response
+			},
 			headers:	{},
 			xhrFields:	{},
 			success: function ( data, xhr, status ) {
 				console.log("Successful operation, but no success handler was specified.");
+				console.log( data );
 			},
 			error: function (xhr, status, error) {
-	        	$self.append("<h4>An Error Occurred</h4>");
+				console.log("Error occured: " + error + ". No error handler defined.");
 	        },
 	        timeout: (10 * 1000)
 		};
 	
 	opts = $.extend( true, defaultOpts, opts );
-	if( opts.ssl ) {
-		opts.url = "https://ssl.reddit.com/" + thing + ".json";
-	}
 	
-	if( postData ) {
+	if( opts.type == "POST" ) {
         opts.headers["Content-type"] = 'application/x-www-form-urlencoded';
-        if( postData.passwd ) {
+        if( opts.data.passwd ) {
         	opts.xhrFields.withCredentials = true;
         }
     }
 	
 	$.ajax( opts );
-	/*{
-        type: opts.type, //default to a get
-        dataType: "jsonp", 
-        url: url, 
-        data: postData,
-        xhrFields: XHRFields,
-        headers: headers,
-        jsonp: "jsonp",
-        success: success,
-        error: function (xhr, status, error) {
-        	$self.append("<h4>An Error Occurred</h4>");
-        },
-        timeout: (20 * 1000)
-    });
-    */
-	/*
-    req.onreadystatechange = function () {
-            if (req.readyState != 4) return;
-            if (req.status != 200 && req.status != 304) {
-                var errorCode = 'HTTP error: ' + req.status;
-                callback(errorCode);
-            }
-            
-            var response = JSON.parse(req.response)
-            if (response.jquery){
-                console.log(req.getAllResponseHeaders());
-            }
-            if(response.data && response.data.modhash){
-                reddit.control.setModHash(response.data.modhash )
-            }
-            if(response.data && response.data.children && typeof callback =='function'){
-                callback(response.data.children);
-            }else if(response.data && typeof callback=='function'){
-                callback(response.data);
-            }else if(typeof callback== 'function'){
-                callback(response);
-            };
-    }
-    if (req.readyState == 4) return;
-    var postString = parsePostData(postData);
-    req.send(postString);
-    */
 };
     /***************************************************************************
      *User
@@ -97,8 +64,11 @@ function sendRequest( thing, opts, postData ) {
      *@modHash: string. Required for making authenticated requests to Reddit API
      *@data: user object passed from Reddit. See Reddit API documentation
      ***************************************************************************/
-    var user = {
-        modHash : '',
+    var authUser = {
+        auth: {
+        	modHash: null,
+        	cookie: null
+        },
         name: '',
         password: '',
         hasMail: '',
@@ -106,33 +76,51 @@ function sendRequest( thing, opts, postData ) {
         setHasMail: function(hasmail){
             this.hasMail = hasmail;
         }
+    };
+    if( document.cookie ) {
+    	authUser.auth.cookie = document.cookie; //$.parseJSON( document.cookie );
     }
+    
 	//public:
 	var instance = {
 	    get : {
 	        fetchReddit : function(sr, count, callback){
 	            var data = {},
-	            	data.count = count ? count : '25';
-	            var sub;
+	            	sub;
+	            
 	            if(sr == 'frontpage') {
-	                    sub = '';
-	            }else {
-	                    sub = 'r/' + sr + '/';
+	                sub = '';
+	            }
+	            else {
+	                sub = 'r/' + sr + '/';
 	            };
+	            
+	            data.count = count ? count : '25';
 	            sendRequest( sub, { success: callback, data: data });
 	        },
-	        fetchById : function(type, id, callback){
-	            var fullName = type + '_' + id;
+	        byId : function( id, callback ){
+	            var fullName = (id instanceof Array) ? id.toString() : id;
 	            sendRequest("by_id/" + fullName, { success: callback } );
 	        },
 	        fetchCommentsById : function(id, callback){
 	            sendRequest( id, { success: callback });
+	        },
+	        commentByIds: function ( linkID, commentID, callback ) {
+	        	sendRequest("comments/" + linkID + "/_/" + commentID, { success: callback } );
 	        },
 	        myReddits: function(callback){
 	            sendRequest("mine", { success: callback } );
 	        },
 	        defaultReddits: function(callback){
 	            sendRequest("reddits/", { success: callback } );
+	        },
+	        userName: function () {
+	        	return authUser.name;
+	        },
+	        me: function () {
+	        	sendProxyRequest( "api/me", {
+	        		type: "GET"
+	        	});
 	        },
 	        fetchProfile: function(user, callback){
 	            var url;
@@ -143,13 +131,16 @@ function sendRequest( thing, opts, postData ) {
 	            }
 	            sendRequest(url, { success: callback } );
 	        },
+	        privateMessages: function () {
+	        	//send
+	        },
 	        retrieveMail: function(onlyNew, callback){
 	            var url = 'message/inbox/';
 	            sendRequest(url, function(msg){
 	                var messages = [];
 	                if(onlyNew && msg.length > 0){
 	                    for(i=0;i<msg.length;i++){
-	                        if(msg[i].data.new){
+	                        if( msg[i].data["new"] ){
 	                            messages.push(msg[i]);
 	                        }
 	                    }
@@ -166,47 +157,82 @@ function sendRequest( thing, opts, postData ) {
 		    //log in function
 		    login : function(user, password, remember, callback){
 		    	//TODO: this URL doesn't work with the others
-		        var logonURL = user;
-		        
 		        var postData = {
-		            api_type: 'json',
-		            user : user,
+		           user : user,
 		            passwd : password
 		        };
-	            sendRequest(logonURL, {
-	            	success: function(response){
-		                /*if(chrome.cookies){
-		                    chrome.cookies.set({
-		                        url: 'http://www.reddit.com',
-		                        name: 'reddit_session',
-		                        domain: '.reddit.com',
-		                        value: reddit.control.fetchModHash()
-		                    })
-		                }*/
-		                console.log('login response');
-		                console.log(response);
-		                reddit.get.fetchProfile('me', callback, postData, true );
-				        if(remember){
-				            localStorage['userName'] = user;
-				            localStorage['password'] = password;
-				        };
+		        sendProxyRequest( "api/login/" + user, {
+	            	data: postData,
+	            	success: function( data, xhr, status){
+	            		if( data.json.errors.length == 0 ){
+	            			authUser.auth = data.json.data; 
+	            			if(chrome && chrome.cookies){
+			                    chrome.cookies.set({
+			                        url: 'http://www.reddit.com',
+			                        name: 'reddit_session',
+			                        domain: '.reddit.com',
+			                        value: reddit.control.fetchModHash()
+			                    });
+			                }
+	            			document["cookie"] = "reddit_session=" + data.json.data.cookie; //JSON.stringify( data.json.data );
+			                console.log('login response');
+			                console.log(data.json);
+			                //reddit.get.fetchProfile('me', callback, postData, true );
+					        if(remember){
+					            localStorage['userName'] = user;
+					            localStorage['password'] = password;
+					            
+					            user.name = user;
+					            user.pass = password;
+					        };
+	            		}
+	            		else {
+	            			//invoke some sort of error case
+	            		}
 			        }
 	            });
 		    },
-		
-		    markMailRead: function(mailId, callback){
-		        var url = 'api/read_message/';
-		        var postData =
-		        {
-		            api_type: 'json',
-		            id: mailId,
-		            uh: reddit.control.fetchModHash(),
-		            jsonp: alert
-		        };
-		        sendRequest(url, { success: callback, data: postData } );
-		        
+		    submit: function ( title, text, sub, kind, success ) {
+		    	sendProxyRequest( "api/submit/", {
+		    		data:	{
+			    		title:		title,
+			    		text:		text,
+			    		sr:			sub,
+			    		kind:		kind,
+			    		uh:			authUser.auth.modhash,
+			    		reddit_session: authUser.auth.cookie  //bypasses captcha
+			    	},
+		    		success: function ( data, xhr, status ) {
+		    			console.log( data );
+		    		},
+		    		error:	function ( xhr, status, error ) {
+		    			console.log( error );
+		    		}
+		    	});
 		    },
-		    
+		    compose: function () { //sends a direct message
+		    	
+		    },
+		    readMessage: function(mailId, callback){
+		        sendProxyRequest( 'api/read_message/', { 
+		        	data: {
+			            id: 		mailId,
+			            uh: 		reddit.control.fetchModHash(),
+			            jsonp: 		alert
+			        },
+			        success: callback
+		        });
+		    },
+		    undreadMessage: function () {
+		    	sendProxyRequest( 'api/unread_message/', { 
+		        	data: {
+			            id: 		mailId,
+			            uh: 		reddit.control.fetchModHash(),
+			            jsonp: 		alert
+			        },
+			        success: callback
+		        });
+		    },
 		    upVote : function(id, callback){
 		
 		    },
@@ -221,7 +247,7 @@ function sendRequest( thing, opts, postData ) {
 		        user.modHash = mh;
 		    },
 		    fetchModHash : function(){
-		        return(user.modHash);
+		        return(authUser.auth.modhash);
 		    },
 		    setUserName : function(un){
 		        user.modHash = un;
