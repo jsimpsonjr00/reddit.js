@@ -44,7 +44,7 @@ function loadMeFromSession() {
 		var splitCookie = cookie.split(";");
 		var hasSession = false;
 		for( var i = 0; i < splitCookie.length; i++ ) {
-			var pair = $.trim( splitCookie ).split("=");
+			var pair = $.trim( splitCookie[i] ).split("=");
 			
 			if( pair[0] == "reddit_session" ) {
 				hasSession = true;
@@ -186,6 +186,7 @@ function sendRequest( thing, opts ) {
 	            });
 	        }
 	    },
+	    //Functions to handle endpoints starting /reddits/
 	    reddits: {
 	        Default: function(callback){
 	            sendRequest("reddits/", { 
@@ -224,6 +225,7 @@ function sendRequest( thing, opts ) {
 	            });
 	        }
 	    },
+	    //functions to handle endpoints starting /message/
 	    message: {
 	    	readMessage: function (mailID, callback) {
 		        sendProxyRequest( 'api/read_message/', { 
@@ -257,6 +259,84 @@ function sendRequest( thing, opts ) {
 		    unread: function () {
 		    	
 		    }
+	    },
+	    //functions dealing with link and comment endpoints
+	    link: {
+	    	action: function ( action, id, callback ) { //generic link action function used by several actions, which may be bypassed
+	    		sendProxyRequest ( "api/" + action, {
+	    			data: {
+	    				id:	id,
+	    				uh:	authUser.getModhash()
+	    			},
+	    			success: callback
+	    		});
+	    	},
+	    	comment: function ( id, text, comment, callback ) {
+	    		sendProxyRequest( "api/comment", {
+	    			data: {
+	    				id: 		id,
+	    				text:		text,
+	    				comment:	comment,
+	    				uh:			authUser.getModhash()
+	    			},
+	    			success: callback
+	    		});
+	    	},
+	    	editUserText: function ( id, text, callback ) {
+	    		sendProxyRequest( "api/editusertext" {
+	    			data: {
+	    				id:		id,
+	    				text:	text,
+	    				uh:		authUser.getModhash()
+	    			},
+	    			success: callback
+	    		});
+	    	},
+	    	hide: function ( id, callback ) {
+	    		reddit.link.action( "hide", id, callback );
+	    	},
+	    	info: function ( id, limit, url, callback ) {
+	    		//TODO: implement
+	    	},
+	    	marknsfw: function ( id, callback ) {
+	    		reddit.link.action( "marknsfw", id, callback );
+	    	},
+	    	morechildren: function ( id, callback ) {
+	    		//TODO: implement
+	    	},
+	    	report: function ( id, callback ) {
+	    		reddit.link.action( "report", id, callback );
+	    	},
+	    	save: function ( id, callback ) {
+	    		reddit.link.action( "save", id, callback );
+	    	},
+	    	submit: function ( title, text, sub, kind, success ) {
+		    	sendProxyRequest( "api/submit/", {
+		    		data:	{
+			    		title:		title,
+			    		text:		text,
+			    		sr:			sub,
+			    		kind:		kind,
+			    		uh:			authUser.getModhash()//auth.modhash
+			    	},
+		    		success: function ( data, xhr, status ) {
+		    			console.log( data );
+		    			success ? success.apply( reddit, [data, xhr, status] ) : null;
+		    		},
+		    		error:	function ( xhr, status, error ) {
+		    			console.log( error );
+		    		}
+		    	});
+		    },
+		    unhide: function ( id, callback ) {
+		    	reddit.link.action( "unhide", id, callback );
+	    	},
+	    	unmarknsfw: function ( id, callback ) {
+	    		reddit.link.action( "unmarknsfw", id, callback );
+	    	},
+	    	unsave: function ( id, callback ) {
+	    		reddit.link.action( "unsave", id, callback );
+	    	}
 	    },
 	    post: {
 	    	submit: function ( title, text, sub, kind, success ) {
@@ -292,15 +372,16 @@ function sendRequest( thing, opts ) {
 	            			authUser.reddit_session = data.json.data.cookie; 
 	            			authUser.setModhash( data.json.data.modhash );
 	            			
+	            			//Set a cookie and get me
 	            			var now = new Date(),
-	            				expires = new Date( now.setFullYear( now.getFullYear() + 1 )).toUTCString().replace( "GMT", "UTC");
+	            				years = (1000*60*60*24*365*10),
+	            				expires = new Date( now.getTime() + years ).toUTCString().replace( "GMT", "UTC");
 	            			
-	            			document["cookie"] = "reddit_session=" + data.json.data.cookie;
-	            			document["cookie"] = "expires=" +  expires;//set cookie with 1 year expiration
-	            			
+	            			document.cookie = "Domain=" + document.domain;
+	            			document.cookie = "path=" + "/";
+	            			document.cookie = "reddit_session=" + encodeURIComponent(data.json.data.cookie);
+	            			document.cookie = "expires=" +  expires;//set cookie with 10 year expiration
 	            			reddit.get.me();
-			                console.log('login response');
-			                console.log(data.json);
 	            		}
 	            		else {
 	            			//TODO: invoke some sort of error case
