@@ -166,7 +166,7 @@ function sendRequest( thing, opts ) {
 	            	success: function( data, xhr, status){
 	            		if( data.json.errors.length == 0 ){
 	            			authUser.auth = data.json.data; 
-	            			if(chrome && chrome.cookies){
+	            			/*if(chrome && chrome.cookies){
 			                    chrome.cookies.set({
 			                        url: 'http://www.reddit.com',
 			                        name: 'reddit_session',
@@ -174,6 +174,7 @@ function sendRequest( thing, opts ) {
 			                        value: reddit.control.fetchModHash()
 			                    });
 			                }
+			                */
 	            			document["cookie"] = "reddit_session=" + data.json.data.cookie; //JSON.stringify( data.json.data );
 			                console.log('login response');
 			                console.log(data.json);
