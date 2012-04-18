@@ -307,7 +307,7 @@ function sendRequest( thing, opts ) {
 	    		});
 	    	},
 	    	editUserText: function ( id, text, callback ) {
-	    		sendProxyRequest( "api/editusertext" {
+	    		sendProxyRequest( "api/editusertext", {
 	    			data: {
 	    				id:		id,
 	    				text:	text
@@ -378,7 +378,7 @@ function sendRequest( thing, opts ) {
 	    		sendRequest( data.username + "/about", {
 	    			data: {
 	    				username: 	user
-	    			}
+	    			},
 	    			success: callback
 	    		});
 	    	},
