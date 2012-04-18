@@ -65,6 +65,7 @@ function loadMeFromSession() {
  */
 function sendProxyRequest ( thing, opts ) {
 	var defaultOpts = { //default Opts map for Proxy requests
+			uh:			authUser.getModhash(),
 			type:		"POST",
 			dataType:	"json",
 			url:		"http://localhost:8888/reddit/proxy/" + thing + ".json", //The proxy server
@@ -146,7 +147,6 @@ function sendRequest( thing, opts ) {
 	        		success: callback 
 	        	});
 	        },
-	        
 	        me: function ( callback ) {
 	        	sendProxyRequest( "api/me", {
 	        		type: "GET",
@@ -193,6 +193,23 @@ function sendRequest( thing, opts ) {
 	            	success: callback 
 	            });
 	        },
+	        subredditStylesheet: function ( op, contents, callback ) {
+	        	sendProxyRequest( "/api/subreddit_stylesheet", {
+	        		data: {
+	        			op:			op,
+	        			contents:	contents
+	        		}
+	        	});
+	        },
+	        subscribe: function ( id, action, callback ) {
+	        	sendProxyRequest( "/api/subscribe", {
+	        		data: {
+	        			id: 	id,
+	        			action:	action
+	        		},
+	        		success: callback
+	        	});
+	        },
 	    	mine: {
 	    		where: function ( where, callback ) {
 	    			sendProxyRequest("reddits/mine/" + where, { 
@@ -208,6 +225,17 @@ function sendRequest( thing, opts ) {
 		        moderator: function ( callback ) {
 	    			reddit.reddits.mine.where( "moderator", callback );
 		        }
+	    	},
+	    	about: function ( sub, callback ) {
+	    		sendRequest( "reddits/" + sub + "/about", {
+	    			success: callback
+	    		});
+	    	},
+	    	search: function ( data, callback ) {
+	    		sendRequest( "reddits/search", {
+	    			data: data,
+	    			success: callback
+	    		});
 	    	},
 	        popular: function ( callback ) {
 	        	sendRequest("reddits/popular", { 
@@ -231,7 +259,6 @@ function sendRequest( thing, opts ) {
 		        sendProxyRequest( 'api/read_message/', { 
 		        	data: {
 			            id: 		mailID,
-			            uh: 		authUser.getModhash(),
 			            jsonp: 		alert
 			        },
 			        success: callback
@@ -241,7 +268,6 @@ function sendRequest( thing, opts ) {
 		    	sendProxyRequest( 'api/unread_message/', { 
 		        	data: {
 			            id: 		mailID,
-			            uh: 		authUser.getModhash(),
 			            jsonp: 		alert
 			        },
 			        success: callback
@@ -266,7 +292,6 @@ function sendRequest( thing, opts ) {
 	    		sendProxyRequest ( "api/" + action, {
 	    			data: {
 	    				id:	id,
-	    				uh:	authUser.getModhash()
 	    			},
 	    			success: callback
 	    		});
@@ -276,8 +301,7 @@ function sendRequest( thing, opts ) {
 	    			data: {
 	    				id: 		id,
 	    				text:		text,
-	    				comment:	comment,
-	    				uh:			authUser.getModhash()
+	    				comment:	comment
 	    			},
 	    			success: callback
 	    		});
@@ -286,8 +310,7 @@ function sendRequest( thing, opts ) {
 	    		sendProxyRequest( "api/editusertext" {
 	    			data: {
 	    				id:		id,
-	    				text:	text,
-	    				uh:		authUser.getModhash()
+	    				text:	text
 	    			},
 	    			success: callback
 	    		});
@@ -316,8 +339,7 @@ function sendRequest( thing, opts ) {
 			    		title:		title,
 			    		text:		text,
 			    		sr:			sub,
-			    		kind:		kind,
-			    		uh:			authUser.getModhash()//auth.modhash
+			    		kind:		kind
 			    	},
 		    		success: function ( data, xhr, status ) {
 		    			console.log( data );
@@ -336,27 +358,58 @@ function sendRequest( thing, opts ) {
 	    	},
 	    	unsave: function ( id, callback ) {
 	    		reddit.link.action( "unsave", id, callback );
+	    	},
+	    	vote: function () {
+	    		//TODO: implement once the parameters are understood
 	    	}
 	    },
-	    post: {
-	    	submit: function ( title, text, sub, kind, success ) {
-		    	sendProxyRequest( "api/submit/", {
-		    		data:	{
-			    		title:		title,
-			    		text:		text,
-			    		sr:			sub,
-			    		kind:		kind,
-			    		uh:			authUser.getModhash()//auth.modhash
-			    	},
-		    		success: function ( data, xhr, status ) {
-		    			console.log( data );
-		    			success ? success.apply( reddit, [data, xhr, status] ) : null;
-		    		},
-		    		error:	function ( xhr, status, error ) {
-		    			console.log( error );
-		    		}
-		    	});
-		    }
+	    users: {
+	    	/*
+	    	 * friend, unfriend, 
+	    	 * 	/username/about, ../overview, ../submitted, ../commented, ../liked, ../disliked, ../hidden
+	    	 */
+	    	friend: function () {
+	    		
+	    	},
+	    	unfriend: function ( data, callback ) {
+	    		data.uh = authUser.getModhash();
+	    		sendRequest( "api/unfriend", {
+	    			data: data,
+	    			success: callback
+	    		});
+	    	},
+	    	about: function ( user, callback ) {
+	    		sendRequest( data.username + "/about", {
+	    			data: {
+	    				username: 	user
+	    			}
+	    			success: callback
+	    		});
+	    	},
+	    	where: function ( where, data, callback ) { //generic where for /username/where get requests
+	    		sendRequest( data.username + "/" + where, {
+	    			data: data,
+	    			success: callback
+	    		});
+	    	},
+	    	overview: function ( data, callback ) {
+	    		reddit.users.where( "overview", data, callback );
+	    	},
+	    	submitted: function ( data, callback ) {
+	    		reddit.users.where( "submitted", data, callback );
+	    	},
+	    	commented: function ( data, callback ) {
+	    		reddit.users.where( "commented", data, callback );
+	    	},
+	    	liked: function ( data, callback ) {
+	    		reddit.users.where( "liked", data, callback );
+	    	},
+	    	disliked: function ( data, callback ) {
+	    		reddit.users.where( "disliked", data, callback );
+	    	},
+	    	hidden: function ( data, callback ) {
+	    		reddit.users.where( "hidden", data, callback );
+	    	}
 	    },
 	//reddit API functions
 	    control : {
