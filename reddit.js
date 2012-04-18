@@ -65,10 +65,10 @@ function loadMeFromSession() {
  */
 function sendProxyRequest ( thing, opts ) {
 	var defaultOpts = { //default Opts map for Proxy requests
-			uh:			authUser.getModhash(),
+			uh:			authUser.getModhash(),	//auto add the modhash to shorthand proxy requests a bit
 			type:		"POST",
 			dataType:	"json",
-			url:		"http://localhost:8888/reddit/proxy/" + thing + ".json", //The proxy server
+			url:		"http://localhost:8888/reddit/proxy/" + thing + ".json", //your proxy server
 		};
 	opts = $.extend( true, defaultOpts, opts );
 	sendRequest( thing, opts );
@@ -364,10 +364,6 @@ function sendRequest( thing, opts ) {
 	    	}
 	    },
 	    users: {
-	    	/*
-	    	 * friend, unfriend, 
-	    	 * 	/username/about, ../overview, ../submitted, ../commented, ../liked, ../disliked, ../hidden
-	    	 */
 	    	friend: function () {
 	    		
 	    	},
@@ -435,6 +431,8 @@ function sendRequest( thing, opts ) {
 	            			document.cookie = "reddit_session=" + encodeURIComponent(data.json.data.cookie);
 	            			document.cookie = "expires=" +  expires;//set cookie with 10 year expiration
 	            			reddit.get.me();
+	            			
+	            			callback ? callback.apply( reddit, [data, xhr, status] ) : null;
 	            		}
 	            		else {
 	            			//TODO: invoke some sort of error case
